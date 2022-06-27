@@ -31,3 +31,5 @@ class actInfo():
                  -1.0195, -1.21679, -1.289, -1.21679, -1.0195]
             
         return x, y
+    def getMirrorSurfaces():
+        return [4, 5]

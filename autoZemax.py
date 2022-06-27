@@ -9,6 +9,7 @@ from scipy.fft import fft, fftfreq
 
 
 
+
 # This boilerplate requires the 'pythonnet' module.
 # The following instructions are for installing the 'pythonnet' module via pip:
 #    1. Ensure you are running Python 3.4, 3.5, 3.6, or 3.7. PythonNET does not work with Python 3.8 yet.
@@ -27,7 +28,7 @@ class autoZemax(object):
     class SystemNotPresentException(Exception):
         pass
     
-    globalNumFields = 0
+    global zosFile
     def __init__(self, path=None):
         # determine location of ZOSAPI_NetHelper.dll & add as reference
         aKey = winreg.OpenKey(winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER), r"Software\Zemax", 0, winreg.KEY_READ)
@@ -81,6 +82,7 @@ class autoZemax(object):
 
     def __del__(self):
         if self.TheApplication is not None:
+            print('uh oh')
             self.TheApplication.CloseApplication()
             self.TheApplication = None
         
@@ -170,6 +172,9 @@ if __name__ == '__main__':
     #TheSystem.LoadFile(fileLocation, False)
     def setup(path):
         # Insert Code Here
+        global zosFile
+        zosFile = path[:-4]
+        print(zosFile)
         TheSystem.LoadFile(path, False)
 class configureSystem():
     def clearFields():
@@ -224,6 +229,23 @@ class configureSystem():
         print("Clearing wavelengths 1 to " + str(num_wavelengths))
         for i in range(num_wavelengths):
             TheSystem.SystemData.Wavelengths.RemoveWavelength(1)
+    
+    def applyIdealCoating(x):
+        '''
+        
+
+        Parameters
+        ----------
+        x : list of integers
+            Surfaces to apply ideal coating.
+
+        Returns
+        -------
+        None.
+
+        '''
+        for i in range(len(x)):
+            TheSystem.LDE.GetSurfaceAt(x[i]).Coating = "I.0"
     def setWavelengths(x):
     
         '''
@@ -244,7 +266,7 @@ class configureSystem():
         print("Setting " + str(len(x)) + " new fields")
         for i in range(len(x)):
             TheSystem.SystemData.Wavelengths.AddWavelength(x[i], 1)
-        TheSystem.SystemData.Wavelengths.RemoveField(1)
+        TheSystem.SystemData.Wavelengths.RemoveWavelength(1)
 class polarizationRotation():
     def makePolarizationPupilMap(surface, wavelength, field, sample, angle):
         '''
@@ -274,13 +296,13 @@ class polarizationRotation():
         '''
         
         #Convert input angle from degrees to radians
-        angle = math.radians(angle)
+        angle = np.deg2rad(angle)
         MyPolarizationPupilMap = TheSystem.Analyses.New_Analysis(ZOSAPI.Analysis.AnalysisIDM.PolarizationPupilMap)
         ppmSettings = MyPolarizationPupilMap.GetSettings()
         ppmSettings.Save()
         #Settings file must have the same name as the file name
-        
-        configFile = os.path.join(os.sep, sampleDir,  r'ACTpol_v28_150GHz_modified.ZOS')
+        global zosFile
+        configFile = zosFile + r'.CFG'
         ppmSettings.ModifySettings(configFile, 'PPM_WAVE', str(wavelength))
         ppmSettings.ModifySettings(configFile, 'PPM_SURFACE', str(surface))
         ppmSettings.ModifySettings(configFile, 'PPM_FIELD', str(field))
@@ -333,7 +355,8 @@ class polarizationRotation():
         ppmSettings = MyPolarizationPupilMap.GetSettings()
         ppmSettings.Save()
         #Settings file must have the same name as the file name
-        configFile = os.path.join(os.sep, sampleDir,  r'ACTpol_v28_150GHz_modified.CFG')
+        global zosFile
+        configFile = zosFile + r'.CFG'
         ppmSettings.ModifySettings(configFile, 'PPM_WAVE', str(wavelength))
         ppmSettings.ModifySettings(configFile, 'PPM_SURFACE', str(surface))
         ppmSettings.ModifySettings(configFile, 'PPM_FIELD', str(field))
@@ -413,30 +436,33 @@ class polarizationRotation():
 
         '''
         lines = polarizationRotation.cleanPolarizationPupilMap(polarizationRotation.makePolarizationPupilMap(surface, wavelength, field, sample, angle))
+        
         rotations = []
         expected = angle % 180
         
         for row in lines:
+            
             if expected == 0 or expected == 180:
                 for row in lines:
                     
                     if(row[4] == 0):
                         continue
-                    if(row[6] > 160):            
-                        rotations.append(.5*np.degrees(np.arctan2(row[3],row[2])) - 180)
-            
+                    if(row[6] > 160):
+                        
+                        rotations.append(-np.degrees(np.arctan(row[3]/row[2])))
+                        
                     else:
-                        rotations.append(.5*np.degrees(np.arctan2(row[3],row[2])))
+                        
+                        rotations.append(np.degrees(np.arctan(row[3]/row[2])))
             else:
+            
                 for row in lines:
                     
-                    if(row[4] == 0):
+                        if(row[4] == 0):
+                            
+                            continue
+                        rotations.append((np.degrees(np.arctan(row[3]/row[2]))-expected))
                         
-                        continue
-                    rotations.append(.5*np.degrees(np.arctan2(row[3],row[2])) - expected)
-            
-        
-       
         return np.average(rotations)
     
     
@@ -444,9 +470,10 @@ if __name__ == '__main__':
     # Your code goes here
     # To begin, input the path to your .ZOS file in the setup function
     
-    path = ""
-    
+    path = ''
     setup(path)
+    
+    
     
     
     #Cleans up connection to OS. Use when necessary.

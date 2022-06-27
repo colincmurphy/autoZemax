@@ -383,33 +383,33 @@ class polarizationRotation():
         Given the path to a text file of a polarization pupil map, organize the
         results into rows. Return the multidimensional array where the values
         are stored
-
         Parameters
         ----------
         FilePath : string
             Path to the text file where the results of a polarization pupil map
             are stored. 
-
         Returns
         -------
         Multidimensional array with the values in the polarization pupil map, 
         indexed by in order: Px, Py, Ex, Ey, Intensity, Phase (Deg), Orientation
-
         '''
         lines = []
         with open(FilePath) as file:
             for line in file:
                 lines.append(line)
-        lines = lines[36:]
-        del lines[1::2]
+        lines = lines[18:]
+        #del lines[1::2]
         #lines = [i.split() for i in lines]
         for i in range(len(lines)):
-            lines[i]=lines[i][1::2]
+            #lines[i]=lines[i][1::2]
+
             lines[i]=lines[i].split()
             for j in range(len(lines[i])):
+                
                 lines[i][j]=float(lines[i][j])
         lines.pop(-1)
         return lines
+    
     def getAverageOfPupilMap(surface, wavelength, field, sample, angle):
         '''
         Given surface, wavelength, field, sample, angle: create PPM, clean the
@@ -441,27 +441,11 @@ class polarizationRotation():
         expected = angle % 180
         
         for row in lines:
-            
-            if expected == 0 or expected == 180:
-                for row in lines:
-                    
-                    if(row[4] == 0):
-                        continue
-                    if(row[6] > 160):
-                        
-                        rotations.append(-np.degrees(np.arctan(row[3]/row[2])))
-                        
-                    else:
-                        
-                        rotations.append(np.degrees(np.arctan(row[3]/row[2])))
-            else:
-            
-                for row in lines:
-                    
-                        if(row[4] == 0):
-                            
-                            continue
-                        rotations.append((np.degrees(np.arctan(row[3]/row[2]))-expected))
+            if row[4] == 0:
+                continue
+            S1 = row[2]**2-row[3]**2
+            S2 = 2*row[2]*row[3]*np.cos(np.deg2rad(row[5]))
+            rotations.append(.5*np.degrees(np.arctan(S2/S1)))
                         
         return np.average(rotations)
     
@@ -472,7 +456,6 @@ if __name__ == '__main__':
     
     path = ''
     setup(path)
-    
     
     
     

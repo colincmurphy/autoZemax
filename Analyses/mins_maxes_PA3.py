@@ -5,8 +5,8 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import math
 import gc
-import sys
 from scipy.fft import fft, fftfreq
+import sys
 sys.path.append(r'C:\Users\colinmurphy\Documents\Zemax\ZOS-API Projects\autoZemax') 
 import autoACT
 
@@ -478,33 +478,41 @@ if __name__ == '__main__':
     
     #Apply ideal coatings
     mirrorSurfaces = autoACT.actInfo.getMirrorSurfaces()
-    configureSystem.applyIdealCoating(mirrorSurfaces)
+    #configureSystem.applyIdealCoating(mirrorSurfaces)
     
     #Apply PA2 fields
-    fieldX, fieldY = autoACT.actInfo.getFields(2)
+    fieldX, fieldY = autoACT.actInfo.getFields(3)
     configureSystem.setFields(fieldX, fieldY)
     
     #Set range of wavelengths
-    wavelengths = np.arange(150, 400, 30)
+    frequencies = np.arange(180, 400, 30)
+    wavelengths =  frequencies.copy()
     for i in range(len(wavelengths)):
         wavelengths[i] = 300000/(wavelengths[i])
     configureSystem.setWavelengths(wavelengths)
     
-    #Find the maximum and minimum rotation for a variety of wavelengths across 
-    #the entire FOV
+    #restarts connection to prevent it from closing due to idleness
+    def reconfigure():
+        setup(path)
+        configureSystem.setFields(fieldX, fieldY)
+        configureSystem.applyIdealCoating(mirrorSurfaces)
+        configureSystem.setWavelengths(wavelengths)
+    
     averages = []
-    
-    for j in range(len(fieldX)):
-        averages.append(polarizationRotation.getAverageOfPupilMap(10, (i + 1), (j + 1), 12, 5))     
-        
-    #Plot max and min rotations
-    for i in range(len(fieldX)):
-        fieldX[i]=-fieldX[i]
-        fieldY[i]=-fieldY[i]
-    plt.scatter(fieldX, fieldY, c = averages)
-    plt.colorbar()
-    plt.title("Telescope Only Rotation on Sky OpticStudio - PA2")
-    
-    
+    maxes = []
+    mins = []
+    for i in range(len(wavelengths)):
+        for j in range(len(fieldX)):
+            averages.append(polarizationRotation.getAverageOfPupilMap(10, (i+1), (j+1), 27, 0))
+        mins.append(np.max(averages))
+        maxes.append(np.min(averages))
+        averages = []
+        reconfigure()
+    plt.scatter(frequencies, maxes )
+    plt.scatter(frequencies, mins)
+    plt.title("Min and Max Rotation vs Frequency -- OpticStudio, PA3")
+    plt.xlabel("Frequencies (GHz)")
+    plt.ylabel("Rotation (degrees)")
+    plt.ylim(-2, 2)
     #Cleans up connection to OS. Use when necessary.
     del zos

@@ -445,8 +445,18 @@ class polarizationRotation():
                 continue
             S1 = row[2]**2-row[3]**2
             S2 = 2*row[2]*row[3]*np.cos(np.deg2rad(row[5]))
-            rotations.append(.5*np.degrees(np.arctan(S2/S1)))
-                        
+            if abs(angle % 90) < 1:
+                if S1*S2 >= 0:
+                    rotations.append(.5*np.degrees(np.arctan(S2/S1)))
+                else: 
+                    rotations.append(-.5*np.degrees(np.arctan(abs(S2/S1))))
+                
+            elif 2 * expected > 0 and 2 * expected < 90:
+                rotations.append(.5*np.degrees(np.arctan(S2/S1))-expected)
+            elif 2* expected > 90 and 2 * expected < 270:
+                rotations.append(.5*np.degrees(np.arctan(S2/S1))+90-expected)
+            elif 2*expected > 270:
+                rotations.append(.5*np.degrees(np.arctan(S2/S1))+180 - expected)
         return np.average(rotations)
     
     

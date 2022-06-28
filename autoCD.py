@@ -20,7 +20,3 @@ class cdInfo():
         return x, y
     def getMirrorSurfaces():
         return [9, 13]
-
-x, y = cdInfo.getFields()
-print(str(len(x)))
-print(str(len(y)))
